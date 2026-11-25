@@ -142,6 +142,27 @@ SystemUI/Settings/services.jar 안에 `FLIP`/모델ID/`WINSET` 하드코딩 체�
   일반적인 APK 서명 위조 공격과 동일해서, 의도가 뭐든 그 코드는 안 만든다.
   (`samdex/apksig.py`는 그래서 읽기 전용 서명 진단 도구로만 존재함.)
 
+## 중간 확인 결과 (S26 One UI 9.5 베타 SystemUI.apk 분석, 2026-11-25)
+
+`python3 -m samdex classes/strings`로 실제 S26 `SystemUI.apk`(70MB, 1개 classes.dex)를 스캔한 결과:
+
+- 데스크톱 윈도잉 본체는 거의 전부 **AOSP `com/android/wm/shell/desktopmode/`**
+  (`wm/shell` 패턴만으로 5167개 클래스, `desktopmode`만으로 1028개) — 이건 삼성이 9.5용으로
+  새로 만든 게 아니라 **구글이 플랫폼에 올린 공용 엔진**. 즉 **같은 Android 17 기반인 플립5
+  자체 One UI 9 SystemUI.apk에도 이미 들어있을 가능성이 높음.**
+- `com/samsung/*` 또는 `com/sec/*` 안에 "dex"/"desktop" 들어간 클래스는 15개뿐이고, 전부
+  Knox MDM용 `DexManager`/`IDexPolicy`, Settings 검색 인덱스, 무관한 SDK 예외 클래스 —
+  **"9.5 전용 UI"로 깔끔하게 분리된 삼성 패키지가 안 보임.** 즉 트랙 B의 "이 apk 몇 개만
+  오버레이로 덮어쓰면 됨" 같은 단순 그래프트 대상이 아직 명확히 안 잡힘 (Samsung 커스터마이징이
+  AOSP 네임스페이스 안에 직접 끼워져 있거나, 이 베타 시점엔 아직 차이가 적을 수 있음).
+- `SeslFloatingFeatureReflector`/`SepFloatingFeatureReflector` 클래스 존재 확인 — floating_feature
+  리플렉션 읽기 경로가 실제로 SystemUI 코드에 있음 (트랙 A 전제와 일치).
+
+**결론**: 엔진 자체는 플랫폼 공용일 가능성이 높으므로, **트랙 A(플립5 루팅 + recon)가 지금
+단계에서 훨씬 중요한 다음 액션**. 트랙 B(9.5만의 시각적 디테일 이식)는 플립5 쪽 데이터 없이는
+더 파봐도 비교 기준이 없어서 추측에 가까움 — 플립5 recon 끝난 뒤 같은 방식으로 플립5
+SystemUI.apk와 diff하는 게 정확함.
+
 ## 지금 레포에 있는 것
 
 ```
