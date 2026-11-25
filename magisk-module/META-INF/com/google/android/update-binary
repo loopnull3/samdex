@@ -1,0 +1,28 @@
+#!/sbin/sh
+#################
+# Magisk Flashable Zip Installer Stub
+# This script is the standard boilerplate every Magisk module zip ships
+# (see Magisk's "Module Installer" developer docs). It just locates the
+# real update-binary inside Magisk's own installation and hands control
+# to it; this module's actual logic lives in customize.sh.
+#################
+
+umask 022
+
+TMPDIR=/dev/tmp
+# shellcheck disable=SC2034
+OUTFD="$2"
+ZIPFILE="$3"
+
+mkdir -p "$TMPDIR"
+unzip -o "$ZIPFILE" -d "$TMPDIR" >&2
+
+if [ -f "$TMPDIR/util_functions.sh" ]; then
+  . "$TMPDIR/util_functions.sh"
+else
+  MAGISK_BIN=/data/adb/magisk
+  [ -d "$MAGISK_BIN" ] || MAGISK_BIN=/sbin/.magisk/mirror/data/adb/magisk
+  BOOTMODE=true
+  . "$MAGISK_BIN/util_functions.sh" 2>/dev/null
+  install_module
+fi

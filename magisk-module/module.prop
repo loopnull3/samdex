@@ -1,0 +1,6 @@
+id=samdex_dexunlock
+name=SamDeX - DeX Flag Unlock
+version=v0.1
+versionCode=1
+author=samdex
+description=EXPERIMENTAL. Patches SEC_FLOATING_FEATURE_COMMON_CONFIG_DEX_MODE (adds "standalone") in floating_feature.xml as a systemless overlay, to test whether DeX is gated purely by this flag on a model Samsung didn't ship it on (e.g. Z Flip5). Samsung has stated the Flip5 omission is design/thermal, not just a missing flag -- this module tests that claim, it does not guarantee a result. Full log at /data/local/tmp/samdex-dex-install.log.
