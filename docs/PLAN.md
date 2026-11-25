@@ -41,25 +41,31 @@
    추출 → Magisk app으로 패치 → Odin으로 패치된 이미지만 AP 슬롯에 플래시.
 5. 부팅 후 Magisk 루트 확인.
 
-## 트랙 B — 1. 선행 작업 (펌웨어 파일만 있으면 됨, 기기/루팅 불필요)
+## 트랙 B — 1. 선행 작업
 
-9.5가 실제로 올라가는 기기의 **펌웨어 파일만** 받아서 PC/Termux에서 풀면 됨 — 그 기기를
-갖고 있거나 거기에 플래시할 필요 없음.
+**실제 기기(Galaxy S26, One UI 9.5 베타 설치됨, 루팅 안 됨) 보유 확정** → 펌웨어 파일을
+풀 필요 없이 **루팅 없이 `adb pull`로 바로 추출** 가능. 시스템 앱 APK는 보통
+world-readable이라 USB 디버깅만 켜져 있으면 root 없이도 읽힘.
 
-1. samfirm/frija류 도구로 One UI 9.5가 있는 모델(지금은 Galaxy S26 베타가 유일한 소스,
-   2027년 S27부터 정식 — "베타 트래커"로 받는다고 했던 게 이거) 의 `AP_*.tar.md5` 받기.
-2. `AP_*.tar.md5` 는 cpio(또는 lz4 압축 cpio) 묶음 — `tar`로 풀면 `super.img.lz4` 등이 나옴.
-   `super.img`는 Android dynamic partition 이미지라 `lpunpack`으로 `system.img`,
-   `system_ext.img`, `product.img`, `vendor.img` 등으로 다시 쪼개야 함.
-3. 각 `.img`를 `e2fsprogs`(ext4) 또는 `erofsfuse`/`fsck.erofs`(최신 기기는 EROFS가 더 흔함)로
-   마운트/추출해서 DeX 관련 APK·jar·floating_feature.xml을 꺼냄. 찾을 경로 후보:
-   `system_ext/priv-app/DeXHome*`, `system_ext/priv-app/SystemUI*`, `vendor/etc/floating_feature.xml`,
-   `product/priv-app/*Internet*` (Samsung Internet 데스크톱 모드).
-4. 꺼낸 파일들을 `python3 -m samdex strings/classes/scan` 으로 바로 이 세션에서 같이 분석
-   가능 — 펌웨어 전체(수 GB)는 필요 없고, 꺼낸 개별 apk/jar 몇 개만 올려주면 됨.
+1. S26에서 설정 → 휴대전화 정보 → 7번 탭 → 개발자 옵션 → USB 디버깅 ON.
+2. PC에 `adb`(Android platform-tools) 설치, USB로 연결, 디버깅 허용 팝업 승인.
+3. `bash bin/dex-pull-donor.sh` 실행 (이 레포의 스크립트, **PC에서** 실행 — 이 세션은 폰에
+   물리적으로 연결 못 함). `pm list packages -f`로 DeX/desktopmode/SystemUI/Internet 관련
+   패키지를 찾아서 해당 APK를 자동으로 `adb pull`. `floating_feature.xml`/`services.jar`/
+   `framework.jar`도 되는 대로 같이 시도 (루팅 안 됐으니 막힐 수도 있음, 그건 괜찮음 —
+   그 파일들은 S26 쪽 분석에 필수는 아니고, 그게 필요해지면 그때 가서 루팅하거나
+   AP 펌웨어를 풀면 됨 — 아래 "펌웨어 직접 풀기" 참고).
+4. 나온 `donor-s26-9.5/` 폴더(또는 그 안의 apk 몇 개)를 이 세션에 올려주면 바로
+   `python3 -m samdex strings/classes/scan` 으로 분석 시작.
 
-(1~3은 PC 쪽 작업이라 이 세션에선 직접 못 하지만, 꺼낸 결과 파일은 이 세션에 올려서
-`samdex` 도구로 바로 분석 가능 — 그게 4번.)
+### (대안/보강) 루팅했거나 adb pull이 막히는 파일이 있을 때: 펌웨어 직접 풀기
+
+`adb pull`이 권한으로 막히는 파일(주로 `/vendor` 아래 일부, 또는 odex 전용이라 raw dex가
+없는 jar)이 있으면, samfirm/frija류 도구로 받은 `AP_*.tar.md5`를 직접 풀어서 꺼낼 수도
+있음 — `tar`로 풀면 `super.img.lz4` 등이 나오고, `lpunpack`으로 `system.img`,
+`system_ext.img`, `product.img`, `vendor.img`로 쪼갠 다음 `erofsfuse`(최신 기기는 EROFS가
+흔함) 또는 `e2fsprogs`로 마운트해서 꺼냄. S26을 실제로 갖고 있으니 지금은 이 경로는
+우선순위가 낮음 — adb pull로 막힌 파일이 나오면 그때 구체화.
 
 ## 트랙 A — 2. Recon (루팅 끝나면 이 레포의 스크립트로)
 
@@ -149,7 +155,8 @@ samdex/            pure-stdlib 파이썬 패키지 (Termux에서 pip 없이 바�
   __main__.py       CLI: strings / classes / sig / manifest / index / scan
 tests/             위 파서들 검증용 (외부 툴 없이 손으로 만든 최소 dex/axml로 ground-truth 비교)
 magisk-module/     floating_feature DEX_MODE 플래그 실험용 Magisk 모듈
-bin/dex-recon.sh   루팅된 기기에서 돌리는 읽기 전용 recon 스크립트
+bin/dex-recon.sh       (트랙 A) 루팅된 플립5에서 돌리는 읽기 전용 recon 스크립트
+bin/dex-pull-donor.sh  (트랙 B) PC에서 adb로 S26 DeX 컴포넌트 추출 (루팅 불필요)
 ```
 
 ## 다음에 사용자가 할 일 (체크리스트)
@@ -159,7 +166,7 @@ bin/dex-recon.sh   루팅된 기기에서 돌리는 읽기 전용 recon 스크�
 - [ ] `bin/dex-recon.sh` 실행, 결과 파일 공유
 - [ ] (결과 보고 플래그 패치 / feature XML 패치 / smali 패치 중 뭘 할지 같이 결정)
 
-트랙 B (펌웨어, 기기 불필요, 병행 가능):
-- [ ] One UI 9.5 올라가는 기기(S26 등)의 `AP_*.tar.md5` 받기
-- [ ] super.img → 개별 파티션 → DeX 관련 apk/jar/floating_feature.xml 추출
-- [ ] 추출한 파일 몇 개를 이 세션에 올려서 `samdex scan`으로 호환성 확인
+트랙 B (S26, 병행 가능, 루팅 불필요):
+- [ ] S26 USB 디버깅 ON, PC에 adb 설치
+- [ ] `bash bin/dex-pull-donor.sh` 실행
+- [ ] 나온 폴더/apk 몇 개를 이 세션에 올려서 `samdex strings/scan`으로 분석 시작
