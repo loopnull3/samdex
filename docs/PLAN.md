@@ -1,29 +1,67 @@
-# One UI 9.5 DeX on Galaxy Z Flip5 — 실행 계획
+# One UI 9.5 DeX를 (9.5가 안 올라가는) Galaxy Z Flip5에 이식 — 실행 계획
 
-## 0. 전제 (2026-11-25 기준 확인된 것)
+## 0. 전제 (2026-11-25 기준 확인된 것, 1차 계획에서 정정됨)
 
-- **기기**: Galaxy Z Flip5. Samsung이 **공식적으로 DeX를 빼고 출시**했고, 보도에 따르면 이유는
-  "발열(thermal) 설계상 판단"이라고 밝혔다 — 단순히 플래그 하나 꺼놓은 게 아니라
-  **의도적 배제일 수 있다**는 뜻. ([SamMobile](https://sammobile.com/news/no-samsung-dex-support-galaxy-z-flip-5), [GSMArena](https://www.gsmarena.com/samsung_galaxy_z_flip5_might_get_dex_support-news-58552.php))
-  → 그래서 이 계획은 "거의 확실히 됨"이 아니라 **단계별로 싼 실험부터 검증**하는 구조다.
-- **루팅**: OEM 언락 가능, 아직 안 함.
-- **One UI 9.5**: 아직 기기에 없음, 베타 트래커로 받을 예정.
-- One UI 8(Android 16 네이티브 Desktop Mode) 이상에서는 DeX가 가상 디스플레이 기반으로
-  재구축돼서, scrcpy `--new-display` 로도 미러링되는 구조로 바뀌었다 — 즉 **창 관리 핵심 로직은
-  이미 프레임워크에 있고**, Flip5에서 막힌 건 대부분 "메뉴/진입점 노출" 레이어일 가능성이 높다.
-  이게 맞다면 포팅 범위는 "프레임워크 포팅"이 아니라 "게이트 해제"로 훨씬 작아진다.
+- **기기**: Galaxy Z Flip5 (2023, Android 13 출시). Samsung의 "4회 OS 업그레이드" 정책상
+  **One UI 9(Android 17)가 플립5의 마지막 메이저 업그레이드로 확정**됐고, 이미 안정판으로
+  배포됨. **One UI 9.5는 플립5 제외 대상으로 커뮤니티 예상 리스트에 일관되게 빠져 있음**
+  ([SammyFans](https://www.sammyfans.com/2026/11/13/samsung-one-ui-9-5-eligible-devices/),
+  [Android Authority](https://androidauthority.com/galaxy-z-fold-5-flip-5-one-ui-9-global-rollout-3725729)).
+  → **플립5 자체에 9.5를 OTA/베타로 설치하는 경로는 없다.** 9.5 DeX를 플립5에서 쓰려면
+  **다른(9.5 지원) 기기의 펌웨어에서 DeX 관련 컴포넌트를 뽑아 플립5(One UI 9)에 이식**해야 함.
+- Samsung은 플립5에 DeX를 안 넣은 이유로 "발열(thermal) 설계상 판단"을 든 적이 있음
+  ([SamMobile](https://sammobile.com/news/no-samsung-dex-support-galaxy-z-flip-5)) — 이건
+  9.5 여부와 별개로, **One UI 9에서도 DeX 메뉴 자체가 모델 단위로 막혀 있을 가능성**을 뜻함.
+  그래서 이 계획은 두 개의 독립된 작업으로 나뉜다 (아래 1단/2단).
+- **루팅**: OEM 언락 가능, 아직 안 함. 현재 펌웨어는 (추정) One UI 9 안정판.
+- One UI 8(Android 16) 이상에서는 DeX가 가상 디스플레이 기반으로 재구축돼서 scrcpy
+  `--new-display` 로도 미러링되는 구조 — **창 관리 핵심 로직은 이미 Android 17 프레임워크에
+  있을 가능성이 높고**, 9.5가 더하는 건 주로 UI(상단 트레이, 창 스냅, Samsung Internet
+  데스크톱 모드) 쪽. 같은 Android 메이저 버전(17) 안의 포팅이라 ABI/API 격차는 비교적 작을 것.
 
-## 1. 선행 작업 (사용자가 기기/PC에서 직접 — 이 세션은 폰에 물리적으로 접근 못 함)
+## 작업 트랙 두 개 (독립적으로 진행 가능)
 
-1. One UI 9.5 베타 설치 (베타 트래커 경로).
+- **트랙 A — 게이트 해제**: 플립5 자체(One UI 9)에서 DeX 메뉴/기능이 모델 단위로 막혀 있는지
+  확인하고 플래그/선언만으로 풀리는지 테스트. 기기+루팅만 있으면 됨, 9.5 펌웨어 필요 없음.
+  (아래 1~3단, 기존 계획과 동일, "9.5" → "현재 One UI 9"로 대상만 바뀜)
+- **트랙 B — 9.5 DeX 컴포넌트 이식**: 9.5가 실제로 올라가는 기기(현재는 Galaxy S26 베타,
+  2027년 초 S27부터 정식)의 **펌웨어 파일(AP.tar.md5)만** 받아서 PC/Termux에서 풀고
+  DeX 관련 APK/리소스를 추출 — **이건 그 기기를 실제로 갖고 있을 필요 없음, 펌웨어 파일만
+  있으면 됨** (samfirm/frija 같은 도구로 다운로드, 플래싱 안 함). 추출한 걸
+  `samdex scan`으로 플립5의 One UI 9 프레임워크와 비교해서 뭐가 빠지는지 확인.
+
+## 트랙 A — 1. 선행 작업 (사용자가 기기/PC에서 직접 — 이 세션은 폰에 물리적으로 접근 못 함)
+
+1. 현재 펌웨어가 One UI 9 안정판인지 확인 (설정 → 소프트웨어 업데이트 → 다운로드 및 설치,
+   최신까지 올려둠). **9.5는 안 뜬다 — 그게 정상.**
 2. 설정 → 휴대전화 정보 → 7번 탭 → 개발자 옵션 → OEM 잠금해제 ON.
 3. Download 모드 진입 → `adb reboot bootloader` 또는 볼륨키 조합 → 부트로더 언락
    (Knox 워런티 비트 영구적으로 올라감, 삼성페이/일부 금융앱 깨짐 — 알고 진행).
-4. 언락된 기기에서 **스톡 AP 펌웨어의 boot.img(또는 init_boot.img, Android 16 GKI 기준)**를
+4. 언락된 기기에서 **스톡 AP 펌웨어의 boot.img(또는 init_boot.img, Android 17 GKI 기준)**를
    추출 → Magisk app으로 패치 → Odin으로 패치된 이미지만 AP 슬롯에 플래시.
 5. 부팅 후 Magisk 루트 확인.
 
-## 2. Recon (루팅 끝나면 이 레포의 스크립트로)
+## 트랙 B — 1. 선행 작업 (펌웨어 파일만 있으면 됨, 기기/루팅 불필요)
+
+9.5가 실제로 올라가는 기기의 **펌웨어 파일만** 받아서 PC/Termux에서 풀면 됨 — 그 기기를
+갖고 있거나 거기에 플래시할 필요 없음.
+
+1. samfirm/frija류 도구로 One UI 9.5가 있는 모델(지금은 Galaxy S26 베타가 유일한 소스,
+   2027년 S27부터 정식 — "베타 트래커"로 받는다고 했던 게 이거) 의 `AP_*.tar.md5` 받기.
+2. `AP_*.tar.md5` 는 cpio(또는 lz4 압축 cpio) 묶음 — `tar`로 풀면 `super.img.lz4` 등이 나옴.
+   `super.img`는 Android dynamic partition 이미지라 `lpunpack`으로 `system.img`,
+   `system_ext.img`, `product.img`, `vendor.img` 등으로 다시 쪼개야 함.
+3. 각 `.img`를 `e2fsprogs`(ext4) 또는 `erofsfuse`/`fsck.erofs`(최신 기기는 EROFS가 더 흔함)로
+   마운트/추출해서 DeX 관련 APK·jar·floating_feature.xml을 꺼냄. 찾을 경로 후보:
+   `system_ext/priv-app/DeXHome*`, `system_ext/priv-app/SystemUI*`, `vendor/etc/floating_feature.xml`,
+   `product/priv-app/*Internet*` (Samsung Internet 데스크톱 모드).
+4. 꺼낸 파일들을 `python3 -m samdex strings/classes/scan` 으로 바로 이 세션에서 같이 분석
+   가능 — 펌웨어 전체(수 GB)는 필요 없고, 꺼낸 개별 apk/jar 몇 개만 올려주면 됨.
+
+(1~3은 PC 쪽 작업이라 이 세션에선 직접 못 하지만, 꺼낸 결과 파일은 이 세션에 올려서
+`samdex` 도구로 바로 분석 가능 — 그게 4번.)
+
+## 트랙 A — 2. Recon (루팅 끝나면 이 레포의 스크립트로)
 
 `bin/dex-recon.sh` 를 루팅된 기기에서 `su -c sh dex-recon.sh` 로 실행 (adb shell이든
 Termux든 무관). **읽기 전용**, 아무것도 안 바꿈. 확인하는 것:
@@ -37,7 +75,7 @@ Termux든 무관). **읽기 전용**, 아무것도 안 바꿈. 확인하는 것:
 결과 파일(`/sdcard/Download/samdex-recon-*.txt`)을 저한테 다시 공유해주면 다음 단계를
 정확히 짤 수 있다. **이 파일 없이는 2.5/3단계를 추측으로 짤 수밖에 없다.**
 
-## 3. 플래그만으로 풀리는 경우 (제일 싼 경로)
+## 트랙 A — 3. 플래그만으로 풀리는 경우 (제일 싼 경로)
 
 `magisk-module/`: `SEC_FLOATING_FEATURE_COMMON_CONFIG_DEX_MODE` 값에 `standalone`이
 없으면 추가하는 Magisk 모듈. systemless (Magisk의 자체 오버레이 마운트 사용,
@@ -52,7 +90,7 @@ Termux든 무관). **읽기 전용**, 아무것도 안 바꿈. 확인하는 것:
 같은 방식으로, recon에서 `<feature>` XML 선언이 원인으로 보이면 **그 정확한 feature 이름을
 알려주면** 바로 같은 패턴의 두 번째 모듈을 만들어줄 수 있음 (몇 분 작업).
 
-## 4. 플래그로 안 풀리는 경우 (더 무거운 경로)
+## 트랙 A — 4. 플래그로 안 풀리는 경우 (더 무거운 경로)
 
 SystemUI/Settings/services.jar 안에 `FLIP`/모델ID/`WINSET` 하드코딩 체크가 있다면:
 
@@ -65,9 +103,26 @@ SystemUI/Settings/services.jar 안에 `FLIP`/모델ID/`WINSET` 하드코딩 체�
 3. 패치된 dex를 다시 APK에 넣고 **재서명**은 못 함(플랫폼 키가 없음) → 패치된 시스템 앱은
    Magisk 오버레이로 `/system`에 올리는 방식으로만 설치 가능 (서명 우회/위조 기법은
    이 프로젝트에서 다루지 않음 — 그 방향은 안전상 돕지 않음).
-4. `samdex/apiindex.py` + `samdex/apiscan.py`: 9.5 donor APK가 One UI 8 프레임워크에 없는
-   클래스/메서드를 참조하는지 미리 스캔하는 도구. 3단계까지 가면 유용함
-   (`python3 -m samdex scan DeXHome.apk --target <One UI 8 framework dump>`).
+
+## 트랙 B — 2. 이식 (트랙 A에서 기본 DeX 게이트가 풀린 뒤)
+
+트랙 A로 플립5에서 기본 DeX(One UI 9 수준)가 뜨는 걸 확인했으면, 9.5 "느낌"
+(상단 트레이, 창 스냅, Samsung Internet 데스크톱 모드)은 트랙 B에서 뽑은 컴포넌트를
+덧씌워서 가져옴:
+
+1. `samdex/apiindex.py` + `samdex/apiscan.py`: 9.5 donor APK(SystemUI, DeXHome, Samsung
+   Internet 등)가 플립5의 One UI 9 프레임워크에 없는 클래스/메서드를 참조하는지 스캔.
+   같은 Android 17 메이저 버전이라 격차가 작을 걸로 기대하지만 실제로 돌려봐야 안다.
+   (`python3 -m samdex index <플립5에서 뽑은 /system,/vendor,/product> --out oneui9.json.gz`
+   `python3 -m samdex scan DeXHome.apk SystemUI.apk --target oneui9.json.gz`)
+2. 리포트에서 "A: drop-in"이면 해당 APK를 Magisk 오버레이로 덮어쓰기만 하면 됨(서명은
+   그대로 두고 priv-app 권한 화이트리스트만 맞추면 됨 — 서명 위조 아님, 표준 systemless
+   오버레이).
+3. "B: shimmable"이면 빠진 몇 개 클래스/메서드를 더미로 채워주는 shim dex를 짜서 같이
+   오버레이 — 이것도 레포 도구로 리포트가 구체적인 클래스/시그니처까지 알려주니 바로 작성
+   가능.
+4. "C: heavy"면 서비스 레벨(services.jar) 포팅까지 필요해서 범위가 커짐 — 이 경우는 리포트
+   받은 다음 실제로 뭐가 걸리는지 보고 범위를 다시 정하는 게 낫다.
 
 ## 5. 플래그/코드까지 다 뚫어도 남는 벽
 
@@ -99,7 +154,12 @@ bin/dex-recon.sh   루팅된 기기에서 돌리는 읽기 전용 recon 스크�
 
 ## 다음에 사용자가 할 일 (체크리스트)
 
-- [ ] 9.5 베타 설치
-- [ ] OEM 언락 + Magisk 루팅
+트랙 A (기기):
+- [ ] OEM 언락 + Magisk 루팅 (현재 One UI 9 그대로, 9.5 불필요)
 - [ ] `bin/dex-recon.sh` 실행, 결과 파일 공유
-- [ ] (결과 보고 2/2.5/3단계 중 뭘 할지 같이 결정)
+- [ ] (결과 보고 플래그 패치 / feature XML 패치 / smali 패치 중 뭘 할지 같이 결정)
+
+트랙 B (펌웨어, 기기 불필요, 병행 가능):
+- [ ] One UI 9.5 올라가는 기기(S26 등)의 `AP_*.tar.md5` 받기
+- [ ] super.img → 개별 파티션 → DeX 관련 apk/jar/floating_feature.xml 추출
+- [ ] 추출한 파일 몇 개를 이 세션에 올려서 `samdex scan`으로 호환성 확인
